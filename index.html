@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="Excel Filter Pro - A powerful PWA for uploading, filtering, and exporting Excel data">
+    <meta name="keywords" content="Excel, filter, export, spreadsheet, data, PWA">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Excel Pro">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%236366f1' width='180' height='180' rx='40'/><text x='90' y='90' font-size='70' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>EP</text></svg>">
+    <meta name="mobile-web-app-capable" content="yes">
+    
+    <title>Excel Filter Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%236366f1' width='100' height='100' rx='20'/><text x='50' y='50' font-size='50' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>EP</text></svg>">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SheetJS Library -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- Phosphor Icons for modern icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="ph ph-file-xls"></i>
+                    <h1>Excel Filter Pro</h1>
+                </div>
+                <button id="theme-toggle" class="theme-toggle" title="Toggle dark mode">
+                    <i class="ph ph-moon"></i>
+                </button>
+            </div>
+            <p class="subtitle">Upload, Filter, and Export your data in seconds.</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section" id="drop-area">
+            <div class="upload-box">
+                <i class="ph ph-cloud-arrow-up upload-icon"></i>
+                <h3>Drag & Drop your Excel file here</h3>
+                <p>or</p>
+                <label for="file-input" class="upload-btn">Browse Files</label>
+                <input type="file" id="file-input" accept=".xlsx, .xls, .csv" hidden>
+                <button id="load-neo4j-btn" class="upload-btn" type="button" style="margin-top: 1rem; border: 0;">
+                    Load Demo Data from Neo4j
+                </button>
+                <p class="file-info" id="file-name"></p>
+            </div>
+        </section>
+
+        <!-- Main Workspace (Hidden initially) -->
+        <main class="workspace" id="workspace" style="display: none;">
+            
+            <!-- Sidebar / Filter Panel -->
+            <aside class="filter-panel">
+                <div class="panel-header">
+                    <h2><i class="ph ph-faders"></i> Filters</h2>
+                    <button id="reset-filters" class="text-btn">Reset</button>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="search-global">Global Search</label>
+                    <div class="input-wrapper">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" id="search-global" placeholder="Search anything...">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="email-filter">Filter by Email</label>
+                    <div class="input-wrapper">
+                        <i class="ph ph-envelope"></i>
+                        <input type="text" id="email-filter" placeholder="e.g. @gmail.com">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="column-select">Column Specific</label>
+                    <select id="column-select">
+                        <option value="">Select Column...</option>
+                    </select>
+                    <input type="text" id="column-filter-value" placeholder="Value..." disabled>
+                </div>
+
+                <div class="filter-group">
+                    <label for="advanced-filter">Advanced Filters</label>
+                    <div class="advanced-filters">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="regex-toggle"> Use Regex
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="case-sensitive-toggle"> Case Sensitive
+                        </label>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="date-range-filter">Date Range</label>
+                    <select id="date-range-preset">
+                        <option value="">Select preset...</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="last7days">Last 7 Days</option>
+                        <option value="last30days">Last 30 Days</option>
+                        <option value="thisMonth">This Month</option>
+                        <option value="lastMonth">Last Month</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    <div id="custom-date-range" style="display: none; margin-top: 0.5rem;">
+                        <input type="date" id="date-from" placeholder="From">
+                        <input type="date" id="date-to" placeholder="To" style="margin-top: 0.5rem;">
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label for="numeric-range">Numeric Range</label>
+                    <select id="numeric-column-select">
+                        <option value="">Select numeric column...</option>
+                    </select>
+                    <div id="numeric-range-inputs" style="display: none; margin-top: 0.5rem;">
+                        <input type="number" id="numeric-min" placeholder="Min value">
+                        <input type="number" id="numeric-max" placeholder="Max value" style="margin-top: 0.5rem;">
+                    </div>
+                </div>
+
+                <div id="column-stats" class="column-stats" style="display: none;">
+                    <label>Column Statistics</label>
+                    <div class="stats-detailed">
+                        <div class="stat-row"><span class="stat-name">Type:</span> <span id="stat-type">-</span></div>
+                        <div class="stat-row"><span class="stat-name">Min:</span> <span id="stat-min">-</span></div>
+                        <div class="stat-row"><span class="stat-name">Max:</span> <span id="stat-max">-</span></div>
+                        <div class="stat-row"><span class="stat-name">Avg:</span> <span id="stat-avg">-</span></div>
+                        <div class="stat-row"><span class="stat-name">Unique:</span> <span id="stat-unique">-</span></div>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Rows</span>
+                        <span class="stat-value" id="total-rows">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Filtered</span>
+                        <span class="stat-value" id="filtered-rows">0</span>
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <button id="save-filter-btn" class="secondary-btn" title="Save current filters">
+                        <i class="ph ph-floppy-disk"></i> Save Filters
+                    </button>
+                    <button id="load-filter-btn" class="secondary-btn" title="Load saved filters">
+                        <i class="ph ph-folder-open"></i> Load Filters
+                    </button>
+                </div>
+
+                <button id="download-btn" class="primary-btn">
+                    <i class="ph ph-download-simple"></i> Download Configured Data
+                </button>
+
+                <div class="export-buttons">
+                    <button id="export-csv-btn" class="secondary-btn" title="Export as CSV">
+                        <i class="ph ph-file-csv"></i> CSV
+                    </button>
+                    <button id="export-json-btn" class="secondary-btn" title="Export as JSON">
+                        <i class="ph ph-file-json"></i> JSON
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Data Preview -->
+            <section class="data-preview">
+                <div class="preview-header">
+                    <h2>Data Preview</h2>
+                    <div class="view-controls">
+                        <button id="column-visibility-btn" class="icon-btn" title="Show/Hide Columns">
+                            <i class="ph ph-columns"></i>
+                        </button>
+                        <button id="data-tools-btn" class="icon-btn" title="Data Tools">
+                            <i class="ph ph-wrench"></i>
+                        </button>
+                        <button id="visualize-btn" class="icon-btn" title="Visualize Data">
+                            <i class="ph ph-chart-bar"></i>
+                        </button>
+                        <span id="showing-info">Showing all results</span>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="data-table">
+                        <thead>
+                            <!-- Headers generated dynamically -->
+                        </thead>
+                        <tbody>
+                            <!-- Rows generated dynamically -->
+                        </tbody>
+                    </table>
+                    <div id="empty-state" class="empty-state" style="display: none;">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <p>No matching records found.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcuts-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="ph ph-keyboard"></i> Keyboard Shortcuts</h2>
+                <button class="modal-close" id="close-shortcuts">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="shortcuts-grid">
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>F</kbd>
+                        <span>Focus Global Search</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>E</kbd>
+                        <span>Export Excel</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd>
+                        <span>Export CSV</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>R</kbd>
+                        <span>Reset Filters</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>K</kbd>
+                        <span>Show/Hide Shortcuts</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>D</kbd>
+                        <span>Toggle Dark Mode</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>H</kbd>
+                        <span>Find & Replace</span>
+                    </div>
+                    <div class="shortcut-item">
+                        <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd>
+                        <span>Copy to Clipboard</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Visibility Modal -->
+    <div id="column-visibility-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="ph ph-columns"></i> Column Visibility</h2>
+                <button class="modal-close" id="close-column-visibility">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="column-visibility-list" class="column-visibility-list"></div>
+                <div class="modal-actions">
+                    <button id="show-all-columns" class="secondary-btn">Show All</button>
+                    <button id="hide-all-columns" class="secondary-btn">Hide All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Tools Modal -->
+    <div id="data-tools-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="ph ph-wrench"></i> Data Tools</h2>
+                <button class="modal-close" id="close-data-tools">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tools-grid">
+                    <button class="tool-btn" id="remove-duplicates-btn">
+                        <i class="ph ph-copy"></i>
+                        <span>Remove Duplicates</span>
+                    </button>
+                    <button class="tool-btn" id="remove-empty-rows-btn">
+                        <i class="ph ph-trash"></i>
+                        <span>Remove Empty Rows</span>
+                    </button>
+                    <button class="tool-btn" id="trim-whitespace-btn">
+                        <i class="ph ph-scissors"></i>
+                        <span>Trim Whitespace</span>
+                    </button>
+                    <button class="tool-btn" id="validate-emails-btn">
+                        <i class="ph ph-envelope-simple"></i>
+                        <span>Validate Emails</span>
+                    </button>
+                    <button class="tool-btn" id="uppercase-btn">
+                        <i class="ph ph-text-aa"></i>
+                        <span>UPPERCASE</span>
+                    </button>
+                    <button class="tool-btn" id="lowercase-btn">
+                        <i class="ph ph-text-aa"></i>
+                        <span>lowercase</span>
+                    </button>
+                    <button class="tool-btn" id="find-replace-btn">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <span>Find & Replace</span>
+                    </button>
+                    <button class="tool-btn" id="copy-clipboard-btn">
+                        <i class="ph ph-clipboard"></i>
+                        <span>Copy to Clipboard</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Find & Replace Modal -->
+    <div id="find-replace-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="ph ph-magnifying-glass"></i> Find & Replace</h2>
+                <button class="modal-close" id="close-find-replace">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-group">
+                    <label>Column</label>
+                    <select id="fr-column-select">
+                        <option value="all">All Columns</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Find</label>
+                    <input type="text" id="fr-find" placeholder="Text to find...">
+                </div>
+                <div class="filter-group">
+                    <label>Replace with</label>
+                    <input type="text" id="fr-replace" placeholder="Replacement text...">
+                </div>
+                <div class="advanced-filters">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="fr-case-sensitive"> Case Sensitive
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="fr-whole-word"> Whole Word Only
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button id="fr-preview-btn" class="secondary-btn">Preview</button>
+                    <button id="fr-replace-btn" class="primary-btn">Replace All</button>
+                </div>
+                <div id="fr-preview" class="fr-preview" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualization Modal -->
+    <div id="visualization-modal" class="modal" style="display: none;">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2><i class="ph ph-chart-bar"></i> Data Visualization</h2>
+                <button class="modal-close" id="close-visualization">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="viz-controls">
+                    <select id="viz-column-select">
+                        <option value="">Select column...</option>
+                    </select>
+                    <select id="viz-type-select">
+                        <option value="bar">Bar Chart</option>
+                        <option value="pie">Pie Chart</option>
+                        <option value="line">Line Chart</option>
+                        <option value="histogram">Histogram</option>
+                    </select>
+                    <button id="generate-chart-btn" class="primary-btn">Generate</button>
+                </div>
+                <div id="chart-container" class="chart-container"></div>
+                <button id="export-chart-btn" class="secondary-btn" style="display: none; margin-top: 1rem;">
+                    <i class="ph ph-download"></i> Export Chart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Install / Add-to-Home Popup (mobile) -->
+    <div id="install-modal" class="modal" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="ph ph-arrow-down-square"></i> Install Excel Filter Pro</h2>
+                <button class="modal-close" id="install-cancel-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="install-description">Get fast access to Excel Filter Pro from your home screen.</p>
+
+                <div class="install-steps">
+                    <div class="android-instructions" style="display:none;">
+                        <p>Tap <strong>Install</strong> to add the app to your home screen.</p>
+                    </div>
+                    <div class="ios-instructions" style="display:none;">
+                        <p>Tap the <strong>Share</strong> button in Safari, then select <strong>Add to Home Screen</strong>.</p>
+                        <div class="ios-illustration">⬆️ ➜ ➕</div>
+                    </div>
+                </div>
+
+                <div class="install-actions">
+                    <button id="install-confirm-btn" class="primary-btn">Install</button>
+                    <button id="install-later-btn" class="secondary-btn">Maybe later</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="advanced-features.js"></script>
+  
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js', {
+                    scope: '/'
+                }).then((registration) => {
+                    console.log('Service Worker registered successfully:', registration);
+                    
+                    // Check for updates periodically
+                    setInterval(() => {
+                        registration.update();
+                    }, 60000); // Check every minute
+                }).catch((error) => {
+                    console.error('Service Worker registration failed:', error);
+                });
+
+                // Listen for controller change (new service worker activated)
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('New Service Worker activated');
+                    // Optionally show update notification
+                    const updateMsg = 'A new version is available! Refresh to update.';
+                    console.log(updateMsg);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

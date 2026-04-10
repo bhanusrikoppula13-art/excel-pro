@@ -1,0 +1,9 @@
+{
+  "name": "excel-pro-neo4j",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Excel Pro with Neo4j backend",
+  "dependencies": {
+    "neo4j-driver": "^5.28.1"
+  }
+}
